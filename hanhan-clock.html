@@ -658,7 +658,7 @@
       <button class="chip" data-sound="happy">🎵 欢快</button>
     </div>
     <label class="vol">音量
-      <input type="range" id="vol" min="0" max="100" value="60" />
+      <input type="range" id="vol" min="0" max="100" value="92" />
     </label>
   </section>
 
@@ -812,7 +812,7 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
       ],
       sound: 'ding',
       voice: 'lively',
-      vol: 60,
+      vol: 92,
       log: []
     };
   }
@@ -832,7 +832,7 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
   var alarms = state.alarms;
   if (!state.sound) state.sound = 'ding';
   state.voice = 'lively';
-  if (typeof state.vol !== 'number') state.vol = 60;
+  if (typeof state.vol !== 'number') state.vol = 92;
   if (!Array.isArray(state.log)) state.log = [];
 
   // 旧版默认的 21:30 睡觉闹钟，统一改成 12 点（00:00）
@@ -863,13 +863,50 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
         if (!Ctor) return false;
         ac = new Ctor();
         master = ac.createGain();
-        master.gain.value = volValue();
+        master.gain.value = volValue() * 1.7;
         master.connect(ac.destination);
       }
       if (ac.state === 'suspended') ac.resume();
       soundOn = true;
       return true;
     } catch (e) { return false; }
+  }
+
+  var CLIP_CACHE = {}, clipNode = null;
+
+  function decodeClip(src, cb) {
+    var c = CLIP_CACHE[src];
+    if (c) { cb(c); return; }
+    try {
+      var b64 = src.slice(src.indexOf(',') + 1);
+      var bin = atob(b64), n = bin.length, u8 = new Uint8Array(n);
+      for (var i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+      ac.decodeAudioData(u8.buffer, function (buf) {
+        CLIP_CACHE[src] = buf;
+        cb(buf);
+      }, function () { cb(null); });
+    } catch (e) { cb(null); }
+  }
+
+  function playClip(src, mul, onDone) {
+    if (!ensureAudio()) return false;
+    if (clipNode) { try { clipNode.stop(); } catch (e) {} clipNode = null; }
+    var mulv = mul == null ? 1 : mul;
+    decodeClip(src, function (buf) {
+      if (!buf) { if (onDone) onDone(); return; }
+      try {
+        var node = ac.createBufferSource();
+        node.buffer = buf;
+        var g = ac.createGain();
+        g.gain.value = Math.max(0.02, Math.min(1.5, volValue() * mulv));
+        node.connect(g);
+        g.connect(ac.destination);
+        clipNode = node;
+        if (onDone) node.onended = onDone;
+        node.start(0);
+      } catch (e) { if (onDone) onDone(); }
+    });
+    return true;
   }
 
   function tone(freq, t0, dur, type, gain) {
@@ -990,7 +1027,7 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
       u.lang = 'zh-CN';
       u.rate = 1.04;
       u.pitch = 1.4;
-      u.volume = Math.max(0.15, Math.min(1, (state.vol || 60) / 100));
+      u.volume = Math.max(0.15, volValue());
       if (voice) u.voice = voice;
 
       var done = false;
@@ -1028,10 +1065,10 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
     if (pack) {
       var src = kind === 'cancel' ? pack.cancel : (pack.change && pack.change[min]);
       if (src) {
+        if (playClip(src, 1, null)) return true;
         try {
-          if (lastVoiceAudio) { try { lastVoiceAudio.pause(); } catch (e2) {} }
           var a = new Audio(src);
-          a.volume = Math.max(0.1, Math.min(1, (state.vol || 60) / 100));
+          a.volume = 1;
           lastVoiceAudio = a;
           var p = a.play();
           if (p && p.catch) p.catch(function () {});
@@ -1244,11 +1281,11 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
     var i = Math.floor(Math.random() * NUDGE.length);
     if (NUDGE.length > 1 && i === nudgeIdx) i = (i + 1) % NUDGE.length;
     nudgeIdx = i;
+    if (playClip(NUDGE[i], 0.30, null)) return;
     try {
       var a = NUDGE_AUDIO[i];
       if (!a) { a = NUDGE_AUDIO[i] = new Audio(NUDGE[i]); }
       try { a.currentTime = 0; } catch (e1) {}
-      a.volume = Math.max(0.1, Math.min(0.5, ((state.vol || 60) / 100) * 0.35));
       nudgeAudio = a;
       var pr = a.play();
       if (pr && pr.catch) pr.catch(function () {});
@@ -1671,9 +1708,9 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
     var src = SUB_VOICE[sub];
     if (src) {
       try {
-        if (lastVoiceAudio) { try { lastVoiceAudio.pause(); } catch (e2) {} }
+        if (playClip(src, 1, null)) return true;
         var a = new Audio(src);
-        a.volume = 0.9;
+        a.volume = 1;
         lastVoiceAudio = a;
         var pr = a.play();
         if (pr && pr.catch) pr.catch(function () {});
@@ -2500,7 +2537,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
   $('#vol').value = String(state.vol);
   $('#vol').addEventListener('input', function (e) {
     state.vol = Number(e.target.value);
-    if (master) master.gain.value = volValue();
+    if (master) master.gain.value = volValue() * 1.7;
     persist();
   });
 
@@ -2579,7 +2616,11 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
   paintFs();
   setInterval(tick, 500);
   setInterval(updateNext, 20000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    try { ensureAudio(); } catch (e) {}
+    tick();
+  });
 
   // 后台心跳，尽量让标签页在后台时也准时检查
   try {
