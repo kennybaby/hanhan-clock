@@ -1732,7 +1732,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
     if (ico) ico.textContent = '📈';
 
-    if (sb) sb.textContent = '这一科的柱子往上长了，接着攒就升级！';
+    if (sb) sb.textContent = '这一科的柱子往上长了，接着攒就能再进一名！';
 
     el.classList.remove('hidden');
 
@@ -2023,21 +2023,95 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
     { s: '历史', o: 29, n: 36 }
   ];
   var SCORE_MAX = 52;
-  var XP_STEPS = [150, 330, 540, 780, 1050, 1350, 1680, 2040, 2430];
+  /* 每进一名 = 系数 × (53 − 当前名次) 分钟；系数默认 8，可按科单独调 */
+  var RANK_N = 53;
+  var C_DEF = 8;
+  var SUB_C = {
+    '语文': 8, '数学': 8, '英语': 8,
+    '物理': 8, '化学': 8, '政治': 8, '历史': 8
+  };
 
 
 
-  function xpInfo(x) {
+  function baseRankOf(sub) {
 
-    var lv = 1, base = 0, need = XP_STEPS[0];
+    var i = idxOf(sub);
 
-    while (lv < 10 && x >= base + need) { base += need; lv++; need = XP_STEPS[lv - 1]; }
+    if (i < 0) return 1;
 
-    if (lv >= 10) need = 0;
+    return Math.round((SCORES[i].o + SCORES[i].n) / 2);
 
-    var cur = x - base;
+  }
 
-    return { lv: lv, cur: cur, need: need, pct: need ? Math.min(1, cur / need) : 1 };
+
+
+  function costOf(sub, rank) {
+
+    var c = SUB_C[sub];
+
+    if (typeof c !== 'number') c = C_DEF;
+
+    return Math.max(1, Math.round(c * (RANK_N - rank)));
+
+  }
+
+
+
+  var LADDER = {};
+
+
+
+  /* 从当前名次一路到第 1 名，每一步要花多少经验（累计） */
+
+  function ladderOf(sub) {
+
+    if (LADDER[sub]) return LADDER[sub];
+
+    var base = baseRankOf(sub), arr = [], cum = 0, r;
+
+    for (r = base; r > 1; r--) { cum += costOf(sub, r); arr.push({ rank: r - 1, need: cum }); }
+
+    LADDER[sub] = arr;
+
+    return arr;
+
+  }
+
+
+
+  /* 经验 x 分钟 → 现在第几名 / 这一名的进度 */
+
+  function xpInfo(sub, x) {
+
+    if (typeof x !== 'number') x = xpVal(sub);
+
+    var base = baseRankOf(sub), lad = ladderOf(sub);
+
+    var g = 0, k;
+
+    for (k = 0; k < lad.length; k++) { if (x >= lad[k].need) g = k + 1; else break; }
+
+    var rank = Math.max(1, base - g);
+
+    var used = g > 0 ? lad[g - 1].need : 0;
+
+    var nextNeed = g < lad.length ? lad[g].need : 0;
+
+    var need = nextNeed ? nextNeed - used : 0;
+
+    var cur = nextNeed ? (x - used) : 1;
+
+    return {
+
+      lv: g, rank: rank, cur: cur, need: need,
+
+      pct: need ? Math.min(1, cur / need) : 1,
+
+      rest: nextNeed ? Math.max(0, nextNeed - x) : 0,
+
+      nextCost: need, done: lad.length > 0 && !nextNeed
+
+    };
 
   }
 
@@ -2103,7 +2177,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
 
 
-  function lvOf(sub) { return xpInfo(xpVal(sub)).lv; }
+  function lvOf(sub) { return xpInfo(sub).lv; }
 
 
 
@@ -2119,9 +2193,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
   function predOf(r) {
 
-    var base = Math.round((r.o + r.n) / 2);
-
-    return Math.max(1, base - (lvOf(r.s) - 1));
+    return xpInfo(r.s).rank;
 
   }
 
@@ -2138,11 +2210,11 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
     var before = state.xp[sub] || 0;
 
-    var ib = xpInfo(before);
+    var ib = xpInfo(sub, before);
 
     state.xp[sub] = before + gain;
 
-    var ia = xpInfo(state.xp[sub]);
+    var ia = xpInfo(sub, state.xp[sub]);
 
     persist();
 
@@ -2218,7 +2290,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
     var lvt = document.getElementById('lv-' + idx);
 
-    if (lvt) setTimeout(function () { lvt.textContent = 'L' + res.to.lv; }, 760);
+    if (lvt) setTimeout(function () { lvt.textContent = '↑' + res.to.lv; }, 760);
 
 
 
@@ -2444,7 +2516,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
 
 
-      var xi = xpInfo(xpVal(r.s));
+      var xi = xpInfo(r.s);
 
       var xpH = Math.max(0.5, xi.pct * XPMAX);
 
@@ -2456,7 +2528,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
       g += '<text class="lv-tag" id="lv-' + i + '" x="' + (xXp + xpW / 2).toFixed(2) + '" y="' + (BOT - XPMAX - 4).toFixed(1) +
 
-           '" text-anchor="middle" fill="#8a6fa5" font-size="' + (narrow ? 6.8 : 7.8) + '" font-weight="700">L' + xi.lv + '</text>';
+           '" text-anchor="middle" fill="#6f5490" font-size="' + (narrow ? 7.4 : 9) + '" font-weight="800">↑' + xi.lv + '</text>';
 
 
 
