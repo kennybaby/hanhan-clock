@@ -619,7 +619,7 @@
       <span><i class="lg lg-o"></i>10 月</span>
       <span><i class="lg lg-n"></i>11 月</span>
       <span><i class="lg lg-p"></i>预估下次</span>
-      <span><i class="lg lg-x"></i>熟练度</span>
+      <span><i class="lg lg-x"></i>下一名进度</span>
     </div>
   </section>
 
@@ -2023,12 +2023,12 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
     { s: '历史', o: 29, n: 36 }
   ];
   var SCORE_MAX = 52;
-  /* 每进一名 = 系数 × (53 − 当前名次) 分钟；系数默认 8，可按科单独调 */
+  /* 每进一名 = 系数 × (53 − 当前名次) 分钟；系数默认 4，可按科单独调 */
   var RANK_N = 53;
-  var C_DEF = 8;
+  var C_DEF = 4;
   var SUB_C = {
-    '语文': 8, '数学': 8, '英语': 8,
-    '物理': 8, '化学': 8, '政治': 8, '历史': 8
+    '语文': 4, '数学': 4, '英语': 4,
+    '物理': 4, '化学': 4, '政治': 4, '历史': 4
   };
 
 
@@ -2525,10 +2525,6 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
       g += '<rect class="xp-fill" id="xp-' + i + '" data-full="' + XPMAX.toFixed(1) + '" data-bot="' + BOT + '" x="' + xXp.toFixed(2) +
 
            '" y="' + (BOT - xpH).toFixed(2) + '" width="' + xpW + '" height="' + xpH.toFixed(2) + '" rx="' + (xpW / 2) + '" fill="url(#xpGrad)"/>';
-
-      g += '<text class="lv-tag" id="lv-' + i + '" x="' + (xXp + xpW / 2).toFixed(2) + '" y="' + (BOT - XPMAX - 4).toFixed(1) +
-
-           '" text-anchor="middle" fill="#6f5490" font-size="' + (narrow ? 7.4 : 9) + '" font-weight="800">↑' + xi.lv + '</text>';
 
 
 
