@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="涵涵闹钟" />
+<title>涵涵的专属闹钟</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:linear-gradient(160deg,#fff7fa 0%,#f4f8ff 55%,#eefaf3 100%);}
+  .tip{position:fixed;left:0;right:0;top:46%;text-align:center;color:#b48cc8;font:600 14px/1.6 -apple-system,"PingFang SC",sans-serif;letter-spacing:1px;}
+</style>
+</head>
+<body>
+<div class="tip">正在打开…</div>
+<script>
+  /* 启动页：永远保持不变，打开时拼一个当前时间戳去取正页，
+     这样无论 iPad 怎么缓存，拿到的都是最新一版。 */
+  (function () {
+    var url = 'hanhan-clock.html?t=' + Date.now();
+    try { location.replace(url); } catch (e) { location.href = url; }
+  })();
+</script>
+</body>
+</html>
