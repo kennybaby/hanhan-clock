@@ -1760,11 +1760,25 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
     if (ico) ico.textContent = '🏅';
 
-    if (sb) sb.textContent = t.reached
+    var crossed = null;
 
-      ? '已经站上三校线，稳住就是你的位置！'
+    for (var li = 0; li < LINES.length; li++) {
 
-      : ('离' + t.label + '只差 ' + t.gap + ' 名，下次再冲一下就够到！');
+      var L = LINES[li];
+
+      if (res.rank <= L.n && res.from.rank > L.n) { crossed = L; break; }
+
+    }
+
+    if (sb) sb.textContent = crossed
+
+      ? ('进' + crossed.label + '以内了，从这一格起每格变长一档，这是往上爬的门槛。')
+
+      : (t.reached
+
+        ? '已经站上三校线，稳住就是你的位置！'
+
+        : ('离' + t.label + '只差 ' + t.gap + ' 名，下次再冲一下就够到！'));
 
     el.classList.remove('hidden');
 
@@ -2028,8 +2042,9 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
   /* 每进一名 = 段系数 × (53 − 当前名次) × 科目倍率 分钟
      段系数：1-10 名 4，11-20 名 2，21 名及以后 1 */
   var RANK_N = 53;
-  var C_BANDS = [{ max: 10, c: 4 }, { max: 20, c: 2 }, { max: 30, c: 1 }];
+  var C_BANDS = [{ max: 3, c: 4 }, { max: 9, c: 3.2 }, { max: 14, c: 2.2 }, { max: 20, c: 1.5 }];
   var C_TAIL = 1;
+  var LINES = [{ n: 3, label: '三校线' }, { n: 9, label: '20中' }, { n: 14, label: '铁中' }, { n: 20, label: '回中' }];
   var SUB_C = {
     '语文': 1, '数学': 1, '英语': 1,
     '物理': 1, '化学': 1, '政治': 1, '历史': 1
