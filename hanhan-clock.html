@@ -2671,7 +2671,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
       g += '<text x="' + cx.toFixed(2) + '" y="' + (BOT + (narrow ? 25 : 29)) + '" text-anchor="middle" fill="' + (xi.done ? '#d98b12' : mcol) + '" font-size="' + fBar + '" font-weight="700">' + (xi.done ? '巩固' : mark) + '</text>';
 
-      /* 每科一个小“+”：点一下加 60 分钟经验，长按减 60 */
+      /* 每科一个小“+”：点一下加 30 分钟经验，长按减 30 */
       g += '<g class="xp-add" data-sub="' + r.s + '">' +
            '<circle cx="' + cx.toFixed(2) + '" cy="' + addY + '" r="' + (narrow ? 11 : 12) + '" fill="#ffffff" fill-opacity="0.01"/>' +
            '<circle cx="' + cx.toFixed(2) + '" cy="' + addY + '" r="' + (narrow ? 6 : 7) + '" fill="#f8f0fd" stroke="#ddc8f0" stroke-width="1"/>' +
@@ -2753,7 +2753,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
       var sub = subOf(e);
       if (!sub) return;
       clearTimeout(tmr);
-      tmr = setTimeout(function () { tmr = null; add(sub, -60); }, 900);
+      tmr = setTimeout(function () { tmr = null; add(sub, -30); }, 900);
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
       box.addEventListener(ev, function (e) {
@@ -2761,7 +2761,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
         clearTimeout(tmr);
         tmr = null;
         var sub = subOf(e);
-        if (sub) add(sub, 60);
+        if (sub) add(sub, 30);
       });
     });
   })();
