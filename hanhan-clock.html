@@ -245,7 +245,7 @@
   .score-legend .lg-n{background:linear-gradient(180deg,#5ecfa4,#7fd3b3)}
   .score-legend .lg-p{background:#fbeeff;border:1px dashed #c9a2ec}
   .score-legend .lg-x{background:linear-gradient(180deg,#ffd166,#63d3a8);border-radius:2px}
-  @keyframes xpGlow{0%,100%{opacity:1}50%{opacity:.32}}
+  @keyframes xpGlow{0%,100%{opacity:1}50%{opacity:.8}}
   .xp-max{animation:xpGlow 3.2s ease-in-out infinite}
 
   /* 计时进行中改档位/取消的二次确认 */
@@ -2466,22 +2466,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
     var xpW = narrow ? 6 : 8;
 
-    var XPMAX = areaH * 0.48;
-
-    /* 七科里当前这一格最贵的那科做满槽，其余按价格比例缩短 */
-    var maxCost = 1;
-
-    SCORES.forEach(function (r) {
-
-      var k0 = predOf(r);
-
-      if (k0 <= 1) return;
-
-      var c0 = costOf(r.s, k0);
-
-      if (c0 > maxCost) maxCost = c0;
-
-    });
+    /* 经验槽高度不再按价格比例，改为与本科预估柱同高 */
 
     var cxOff = narrow ? 18 : 32;
 
@@ -2585,7 +2570,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
       var xi = xpInfo(r.s);
 
-      var slotH = xi.done ? XPMAX : XPMAX * Math.max(0.12, costOf(r.s, xi.rank) / maxCost);
+      var slotH = hPr;   /* 槽顶与本科预估柱顶齐平，随名次动态升降 */
 
       var xpH = Math.max(0.8, xi.pct * slotH);
 
@@ -2594,7 +2579,7 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
       g += '<rect class="xp-fill' + (xi.done ? ' xp-max' : '') + '" id="xp-' + i + '" data-full="' + slotH.toFixed(1) + '" data-bot="' + BOT + '" x="' + xXp.toFixed(2) +
            '" y="' + (BOT - xpH).toFixed(2) + '" width="' + xpW + '" height="' + xpH.toFixed(2) + '" rx="' + (xpW / 2) + '" fill="url(#xpGrad)"/>';
 
-      if (xi.done) g += '<text x="' + (xXp + xpW / 2).toFixed(2) + '" y="' + (BOT - slotH - 4).toFixed(1) + '" text-anchor="middle" fill="#d98b12" stroke="#ffffff" stroke-width="2.2" paint-order="stroke" font-size="' + (narrow ? 7.4 : 9.4) + '" font-weight="800">巩固</text>';
+      if (xi.done) g += '<text x="' + cx.toFixed(2) + '" y="' + (BOT + (narrow ? 38 : 44)).toFixed(1) + '" text-anchor="middle" fill="#d98b12" stroke="#ffffff" stroke-width="2.2" paint-order="stroke" font-size="' + (narrow ? 8 : 10) + '" font-weight="800">巩固</text>';
 
 
 
