@@ -513,7 +513,7 @@
   /* ---- 经验存档面板（长按"涵涵的成绩单"打开） ---- */
   .bk-mask{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(74,58,82,.42);z-index:96;padding:20px}
   .bk-mask.on{display:flex}
-  .bk-card{width:min(94vw,420px);background:#fff;border-radius:18px;padding:16px;box-shadow:0 18px 44px rgba(120,90,140,.3);font:600 13px/1.6 -apple-system,"PingFang SC",sans-serif;color:#4a3a52}
+  .bk-card{width:min(94vw,420px);max-height:86vh;overflow:auto;background:#fff;border-radius:18px;padding:16px;box-shadow:0 18px 44px rgba(120,90,140,.3);font:600 13px/1.6 -apple-system,"PingFang SC",sans-serif;color:#4a3a52}
   .bk-card h4{margin:0 0 8px;font-size:15px;color:#7b5fa3}
   .bk-list{max-height:28vh;overflow:auto;background:#faf6fe;border-radius:12px;padding:9px 11px;font-size:12px;color:#6d5a7a;white-space:pre-wrap;word-break:break-word}
   .bk-row{display:flex;gap:8px;margin-top:8px}
@@ -877,35 +877,61 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
       '<div class="bk-card">' +
         '<h4>经验存档</h4>' +
         '<div class="bk-list" id="bkList"></div>' +
-        '<div class="bk-row"><button class="bk-btn pri" id="bkCopy">复制存档</button><button class="bk-btn" id="bkPaste">粘贴恢复</button></div>' +
-        '<div class="bk-row"><button class="bk-btn" id="bkClose">关闭</button></div>' +
+        '<div class="bk-row"><button class="bk-btn pri" id="bkExp">复制经验串</button><button class="bk-btn" id="bkImp">粘贴经验串</button></div>' +
+        '<div class="bk-row"><button class="bk-btn" id="bkCopy">复制整份存档</button><button class="bk-btn" id="bkPaste">粘贴整份存档</button></div>' +
+        '<div class="bk-row"><button class="bk-btn" id="bkAdj">隐藏 −/+</button><button class="bk-btn" id="bkClose">关闭</button></div>' +
       '</div>';
     document.body.appendChild(mask);
 
+    function names() { return SCORES.map(function (r) { return r.s; }); }
+
+    function expStr() {
+      return names().map(function (n) { return Math.round((state.xp || {})[n] || 0); }).join(',');
+    }
+
     function summary() {
       var xp = state.xp || {};
-      var keys = Object.keys(xp).filter(function (k) { return (xp[k] || 0) > 0; });
-      var head = keys.length
-        ? keys.map(function (k) { return k + ' ' + Math.round(xp[k]) + ' 分钟'; }).join(' · ')
-        : '这台设备上没有任何经验记录';
-      var cnt = (state.log && state.log.length) || 0;
-      return head + '\n\n计时记录 ' + cnt + ' 条\n存档时间 ' + new Date().toLocaleString('zh-CN');
+      return '各科分钟数（' + names().join(' / ') + '）：\n' +
+        names().map(function (n) { return n + ' ' + Math.round(xp[n] || 0); }).join('   ') +
+        '\n\n经验串（按上面顺序，七个数字）：\n' + expStr() +
+        '\n\n存档时间 ' + new Date().toLocaleString('zh-CN');
     }
 
     function open() {
       mask.querySelector('#bkList').textContent = summary();
+      mask.querySelector('#bkAdj').textContent = (state.showAdj === false) ? '显示 −/+' : '隐藏 −/+';
       mask.classList.add('on');
     }
 
-    function payload() {
-      var s = JSON.parse(JSON.stringify(state));
-      if (s.log && s.log.length > 150) s.log = s.log.slice(-150);
-      return JSON.stringify(s);
-    }
+    mask.querySelector('#bkExp').addEventListener('click', function () {
+      var txt = expStr();
+      var ok = function () { alert('经验串已复制：' + txt); };
+      var bad = function () { prompt('把这七个数字抄下来：', txt); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(ok, bad);
+      } else {
+        bad();
+      }
+    });
+
+    mask.querySelector('#bkImp').addEventListener('click', function () {
+      var txt = prompt('按顺序贴七个数字：语文,数学,英语,物理,化学,政治,历史');
+      if (!txt) return;
+      var nums = txt.match(/\d+/g) || [];
+      if (nums.length !== names().length) { alert('要刚好七个数字，现在读到 ' + nums.length + ' 个。'); return; }
+      state.xp = state.xp || {};
+      names().forEach(function (n, k) { state.xp[n] = parseInt(nums[k], 10) || 0; });
+      persist();
+      renderScores();
+      alert('已按经验串恢复：' + expStr());
+      mask.classList.remove('on');
+    });
 
     mask.querySelector('#bkCopy').addEventListener('click', function () {
-      var txt = payload();
-      var ok = function () { alert('存档已复制。到另一个页面长按标题，点「粘贴恢复」贴进去。'); };
+      var s = JSON.parse(JSON.stringify(state));
+      if (s.log && s.log.length > 150) s.log = s.log.slice(-150);
+      var txt = JSON.stringify(s);
+      var ok = function () { alert('整份存档已复制。'); };
       var bad = function () { prompt('长按全选，把下面整段复制走：', txt); };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(txt).then(ok, bad);
@@ -915,21 +941,26 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
     });
 
     mask.querySelector('#bkPaste').addEventListener('click', function () {
-      var txt = prompt('把刚才复制的存档整段粘到这里：');
+      var txt = prompt('把刚才复制的整份存档粘到这里：');
       if (!txt) return;
       var s = null;
       try { s = JSON.parse(txt.trim()); } catch (e) { alert('这段内容读不出来，检查是不是复制漏了。'); return; }
-      if (!s || typeof s !== 'object' || !Array.isArray(s.alarms)) { alert('这不像本闹钟的存档，先确认复制的是「复制存档」出来的那段。'); return; }
-      var xp = s.xp || {};
-      var total = Object.keys(xp).reduce(function (a, k) { return a + (xp[k] || 0); }, 0);
-      if (!confirm('把 ' + Math.round(total) + ' 分钟经验覆盖到这台设备，继续吗？')) return;
-      state.xp = xp;
+      if (!s || typeof s !== 'object' || !Array.isArray(s.alarms)) { alert('这不像本闹钟的存档。'); return; }
+      if (!confirm('覆盖这台设备的经验记录，继续吗？')) return;
+      state.xp = s.xp || {};
       if (Array.isArray(s.log)) state.log = s.log;
       if (s.lastSub) state.lastSub = s.lastSub;
       persist();
       renderScores();
-      alert('已恢复 ' + Math.round(total) + ' 分钟经验。');
+      alert('已恢复：' + expStr());
       mask.classList.remove('on');
+    });
+
+    mask.querySelector('#bkAdj').addEventListener('click', function () {
+      state.showAdj = (state.showAdj === false) ? true : false;
+      persist();
+      renderScores();
+      mask.querySelector('#bkAdj').textContent = (state.showAdj === false) ? '显示 −/+' : '隐藏 −/+';
     });
 
     mask.querySelector('#bkClose').addEventListener('click', function () {
@@ -945,7 +976,7 @@ var pad = function (n) { return String(n).padStart(2, '0'); };
     h2.addEventListener('pointerleave', function () { clearTimeout(tmr); });
   })();
 
-  /* ---------------- 音效 ---------------- */
+
   var ac = null, master = null, loopId = null, soundOn = false;
 
   function volValue() { return Math.max(0, Math.min(1, (state.vol || 0) / 100)); }
@@ -2671,12 +2702,23 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
       g += '<text x="' + cx.toFixed(2) + '" y="' + (BOT + (narrow ? 25 : 29)) + '" text-anchor="middle" fill="' + (xi.done ? '#d98b12' : mcol) + '" font-size="' + fBar + '" font-weight="700">' + (xi.done ? '巩固' : mark) + '</text>';
 
-      /* 每科一个小“+”：点一下加 30 分钟经验，长按减 30 */
-      g += '<g class="xp-add" data-sub="' + r.s + '">' +
-           '<circle cx="' + cx.toFixed(2) + '" cy="' + addY + '" r="' + (narrow ? 11 : 12) + '" fill="#ffffff" fill-opacity="0.01"/>' +
-           '<circle cx="' + cx.toFixed(2) + '" cy="' + addY + '" r="' + (narrow ? 6 : 7) + '" fill="#f8f0fd" stroke="#ddc8f0" stroke-width="1"/>' +
-           '<text x="' + cx.toFixed(2) + '" y="' + (addY + (narrow ? 3.1 : 3.6)).toFixed(2) + '" text-anchor="middle" fill="#a97ce8" font-size="' + (narrow ? 9 : 11) + '" font-weight="800">+</text>' +
-           '</g>';
+      if (state.showAdj !== false) {
+        var adjGap = narrow ? 8.6 : 10.6;
+        var adjR = narrow ? 5 : 6;
+        var hotR = narrow ? 7.6 : 9;
+        var adjT = (addY + (narrow ? 2.9 : 3.4)).toFixed(2);
+        var adjF = narrow ? 9 : 11;
+        g += '<g class="xp-dec" data-sub="' + r.s + '">' +
+             '<circle cx="' + (cx - adjGap).toFixed(2) + '" cy="' + addY + '" r="' + hotR + '" fill="#ffffff" fill-opacity="0.01"/>' +
+             '<circle cx="' + (cx - adjGap).toFixed(2) + '" cy="' + addY + '" r="' + adjR + '" fill="#f8f0fd" stroke="#ddc8f0" stroke-width="1"/>' +
+             '<text x="' + (cx - adjGap).toFixed(2) + '" y="' + adjT + '" text-anchor="middle" fill="#a97ce8" font-size="' + adjF + '" font-weight="800">−</text>' +
+             '</g>' +
+             '<g class="xp-add" data-sub="' + r.s + '">' +
+             '<circle cx="' + (cx + adjGap).toFixed(2) + '" cy="' + addY + '" r="' + hotR + '" fill="#ffffff" fill-opacity="0.01"/>' +
+             '<circle cx="' + (cx + adjGap).toFixed(2) + '" cy="' + addY + '" r="' + adjR + '" fill="#f8f0fd" stroke="#ddc8f0" stroke-width="1"/>' +
+             '<text x="' + (cx + adjGap).toFixed(2) + '" y="' + adjT + '" text-anchor="middle" fill="#a97ce8" font-size="' + adjF + '" font-weight="800">+</text>' +
+             '</g>';
+      }
 
     });
 
@@ -2708,61 +2750,109 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
 
 
-  /* 成绩单里的“+60 分钟”小圆钮：单击加 60，长按减 60 */
+  /* 成绩单里的「−/+」小圆钮：单击 ±30 分钟，按住连续加减，跨名次会播报 */
   (function () {
     var box = $('#scoreChart');
     if (!box) return;
-    var tmr = null;
-    function subOf(e) {
-      var t = e.target && e.target.closest ? e.target.closest('.xp-add') : null;
-      return t ? t.getAttribute('data-sub') : null;
+    var hold = null;
+
+    function hit(e) {
+      var t = e.target && e.target.closest ? e.target.closest('.xp-dec, .xp-add') : null;
+      if (!t) return null;
+      var cls = ' ' + (t.getAttribute('class') || '') + ' ';
+      return { sub: t.getAttribute('data-sub'), dir: cls.indexOf(' xp-dec ') >= 0 ? -1 : 1 };
     }
-    function add(sub, mins) {
-      if (!sub) return;
+
+    function curOf(sub) { return Math.round((state.xp && state.xp[sub]) || 0); }
+
+    /* 连续加减：只改填充高度，不重建图形，保证手指能按得住 */
+    function quick(sub, delta) {
       ensureXP();
       var idx = idxOf(sub);
       if (idx < 0) return;
-
-      /* 减经验：静默，直接改数（补多了退回去用） */
-      if (mins < 0) {
-        state.xp[sub] = Math.max(0, Math.round(state.xp[sub] || 0) + mins);
-        persist();
-        renderScores();
-        return;
+      state.xp[sub] = Math.max(0, curOf(sub) + delta);
+      persist();
+      var xi = xpInfo(sub, state.xp[sub]);
+      var el = document.getElementById('xp-' + idx);
+      if (el && el.ownerSVGElement) {
+        var full = parseFloat(el.getAttribute('data-full') || '0');
+        var bot = parseFloat(el.getAttribute('data-bot') || '0');
+        var h = Math.max(0.8, xi.pct * full);
+        el.setAttribute('height', h.toFixed(2));
+        el.setAttribute('y', (bot - h).toFixed(2));
       }
+    }
 
-      /* 加经验：和正常结算一样有填充动画，跨名次就播升级语音 */
-      var before = Math.round(state.xp[sub] || 0);
+    /* 单击一下：完整反馈（动画 / 升级播报） */
+    function once(sub, dir) {
+      ensureXP();
+      var idx = idxOf(sub);
+      if (idx < 0) return;
+      var before = curOf(sub);
       var ib = xpInfo(sub, before);
-      state.xp[sub] = before + mins;
-      var ia = xpInfo(sub, state.xp[sub]);
-      var res = { gain: mins, from: ib, to: ia, levelUp: ia.lv > ib.lv, total: state.xp[sub] };
+      state.xp[sub] = Math.max(0, before + dir * 30);
       state.lastSub = sub;
       persist();
+      var ia = xpInfo(sub, state.xp[sub]);
+      var res = { gain: dir * 30, from: ib, to: ia, levelUp: ia.lv > ib.lv, rank: ia.rank, tier: tierInfo(ia.rank), total: state.xp[sub] };
       renderScores();
-      setTimeout(function () { animateXP(idx, res); }, 260);
       if (res.levelUp) {
         celebrateUp(sub, res);
         playBoost();
         speakUp(sub, res);
         setTimeout(function () { renderScores(); }, 2500);
         setTimeout(function () { flashPred(idx); }, 2700);
+      } else if (dir > 0) {
+        setTimeout(function () { animateXP(idx, res); }, 60);
       }
     }
-    box.addEventListener('pointerdown', function (e) {
-      var sub = subOf(e);
-      if (!sub) return;
-      clearTimeout(tmr);
-      tmr = setTimeout(function () { tmr = null; add(sub, -30); }, 900);
-    });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
-      box.addEventListener(ev, function (e) {
-        if (!tmr) return;
-        clearTimeout(tmr);
-        tmr = null;
-        var sub = subOf(e);
-        if (sub) add(sub, 30);
-      });
+
+    function stop() {
+      if (!hold) return;
+      clearTimeout(hold.wait);
+      if (hold.rep) clearInterval(hold.rep);
+      var o = hold;
+      hold = null;
+      if (!o.fired) { once(o.sub, o.dir); return; }
+      persist();
+      renderScores();
+      var xi = xpInfo(o.sub, curOf(o.sub));
+      if (xi.rank < o.rank) {
+        var res = { gain: 0, from: { rank: o.rank }, to: xi, levelUp: true, rank: xi.rank, tier: tierInfo(xi.rank), total: curOf(o.sub) };
+        celebrateUp(o.sub, res);
+        playBoost();
+        speakUp(o.sub, res);
+      } else if (xi.rank > o.rank) {
+        flashPred(idxOf(o.sub));
+      }
+    }
+
+    function start(e) {
+      var h = hit(e);
+      if (!h) return;
+      stop2();
+      hold = {
+        sub: h.sub, dir: h.dir, fired: false,
+        rank: xpInfo(h.sub, curOf(h.sub)).rank,
+        wait: setTimeout(function () {
+          if (!hold) return;
+          hold.fired = true;
+          quick(hold.sub, hold.dir * 30);
+          hold.rep = setInterval(function () { if (hold) quick(hold.sub, hold.dir * 30); }, 150);
+        }, 400)
+      };
+    }
+
+    function stop2() {
+      if (!hold) return;
+      clearTimeout(hold.wait);
+      if (hold.rep) clearInterval(hold.rep);
+      hold = null;
+    }
+
+    box.addEventListener('pointerdown', start);
+    ['pointerup', 'pointercancel'].forEach(function (ev) {
+      document.addEventListener(ev, stop, true);
     });
   })();
 
