@@ -245,6 +245,8 @@
   .score-legend .lg-n{background:linear-gradient(180deg,#5ecfa4,#7fd3b3)}
   .score-legend .lg-p{background:#fbeeff;border:1px dashed #c9a2ec}
   .score-legend .lg-x{background:linear-gradient(180deg,#ffd166,#63d3a8);border-radius:2px}
+  @keyframes xpGlow{0%,100%{opacity:1}50%{opacity:.32}}
+  .xp-max{animation:xpGlow 3.2s ease-in-out infinite}
 
   /* 计时进行中改档位/取消的二次确认 */
   #timerCard{position:relative}
@@ -2023,12 +2025,14 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
     { s: '历史', o: 29, n: 36 }
   ];
   var SCORE_MAX = 52;
-  /* 每进一名 = 系数 × (53 − 当前名次) 分钟；系数默认 4，可按科单独调 */
+  /* 每进一名 = 段系数 × (53 − 当前名次) × 科目倍率 分钟
+     段系数：1-10 名 4，11-20 名 2，21 名及以后 1 */
   var RANK_N = 53;
-  var C_DEF = 4;
+  var C_BANDS = [{ max: 10, c: 4 }, { max: 20, c: 2 }, { max: 30, c: 1 }];
+  var C_TAIL = 1;
   var SUB_C = {
-    '语文': 4, '数学': 4, '英语': 4,
-    '物理': 4, '化学': 4, '政治': 4, '历史': 4
+    '语文': 1, '数学': 1, '英语': 1,
+    '物理': 1, '化学': 1, '政治': 1, '历史': 1
   };
 
 
@@ -2045,13 +2049,23 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
 
 
+  function cOfRank(rank) {
+
+    for (var i = 0; i < C_BANDS.length; i++) if (rank <= C_BANDS[i].max) return C_BANDS[i].c;
+
+    return C_TAIL;
+
+  }
+
+
+
   function costOf(sub, rank) {
 
-    var c = SUB_C[sub];
+    var m = SUB_C[sub];
 
-    if (typeof c !== 'number') c = C_DEF;
+    if (typeof m !== 'number') m = 1;
 
-    return Math.max(1, Math.round(c * (RANK_N - rank)));
+    return Math.max(1, Math.round(m * cOfRank(rank) * (RANK_N - rank)));
 
   }
 
@@ -2416,6 +2430,21 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
     var XPMAX = areaH * 0.48;
 
+    /* 七科里当前这一格最贵的那科做满槽，其余按价格比例缩短 */
+    var maxCost = 1;
+
+    SCORES.forEach(function (r) {
+
+      var k0 = predOf(r);
+
+      if (k0 <= 1) return;
+
+      var c0 = costOf(r.s, k0);
+
+      if (c0 > maxCost) maxCost = c0;
+
+    });
+
     var cxOff = narrow ? 18 : 32;
 
     var fBar = narrow ? 8 : 9.6;
@@ -2518,13 +2547,16 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
       var xi = xpInfo(r.s);
 
-      var xpH = Math.max(0.5, xi.pct * XPMAX);
+      var slotH = xi.done ? XPMAX : XPMAX * Math.max(0.12, costOf(r.s, xi.rank) / maxCost);
 
-      g += '<rect x="' + xXp.toFixed(2) + '" y="' + (BOT - XPMAX).toFixed(1) + '" width="' + xpW + '" height="' + XPMAX.toFixed(1) + '" rx="' + (xpW / 2) + '" fill="#f4ebfa" stroke="#e6d7f2" stroke-width=".7"/>';
+      var xpH = Math.max(0.8, xi.pct * slotH);
 
-      g += '<rect class="xp-fill" id="xp-' + i + '" data-full="' + XPMAX.toFixed(1) + '" data-bot="' + BOT + '" x="' + xXp.toFixed(2) +
+      g += '<rect x="' + xXp.toFixed(2) + '" y="' + (BOT - slotH).toFixed(1) + '" width="' + xpW + '" height="' + slotH.toFixed(1) + '" rx="' + (xpW / 2) + '" fill="#f4ebfa" stroke="#e6d7f2" stroke-width=".7"/>';
 
+      g += '<rect class="xp-fill' + (xi.done ? ' xp-max' : '') + '" id="xp-' + i + '" data-full="' + slotH.toFixed(1) + '" data-bot="' + BOT + '" x="' + xXp.toFixed(2) +
            '" y="' + (BOT - xpH).toFixed(2) + '" width="' + xpW + '" height="' + xpH.toFixed(2) + '" rx="' + (xpW / 2) + '" fill="url(#xpGrad)"/>';
+
+      if (xi.done) g += '<text x="' + (xXp + xpW / 2).toFixed(2) + '" y="' + (BOT - slotH - 4).toFixed(1) + '" text-anchor="middle" fill="#d98b12" stroke="#ffffff" stroke-width="2.2" paint-order="stroke" font-size="' + (narrow ? 7.4 : 9.4) + '" font-weight="800">巩固</text>';
 
 
 
