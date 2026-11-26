@@ -2719,10 +2719,35 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
     }
     function add(sub, mins) {
       if (!sub) return;
-      state.xp = state.xp || {};
-      state.xp[sub] = Math.max(0, (Math.round(state.xp[sub] || 0)) + mins);
+      ensureXP();
+      var idx = idxOf(sub);
+      if (idx < 0) return;
+
+      /* 减经验：静默，直接改数（补多了退回去用） */
+      if (mins < 0) {
+        state.xp[sub] = Math.max(0, Math.round(state.xp[sub] || 0) + mins);
+        persist();
+        renderScores();
+        return;
+      }
+
+      /* 加经验：和正常结算一样有填充动画，跨名次就播升级语音 */
+      var before = Math.round(state.xp[sub] || 0);
+      var ib = xpInfo(sub, before);
+      state.xp[sub] = before + mins;
+      var ia = xpInfo(sub, state.xp[sub]);
+      var res = { gain: mins, from: ib, to: ia, levelUp: ia.lv > ib.lv, total: state.xp[sub] };
+      state.lastSub = sub;
       persist();
       renderScores();
+      setTimeout(function () { animateXP(idx, res); }, 260);
+      if (res.levelUp) {
+        celebrateUp(sub, res);
+        playBoost();
+        speakUp(sub, res);
+        setTimeout(function () { renderScores(); }, 2500);
+        setTimeout(function () { flashPred(idx); }, 2700);
+      }
     }
     box.addEventListener('pointerdown', function (e) {
       var sub = subOf(e);
