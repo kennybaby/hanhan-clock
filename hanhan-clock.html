@@ -1792,25 +1792,9 @@ return '<button class="tbtn" type="button" data-min="' + m + '">' +
 
   function speakUp(sub, res) {
 
-    var t = res.tier;
-
-    var parts = [sub + '，', '前进到第 ' + res.rank + ' 名啦！'];
-
-    if (t.reached) {
-
-      parts.push('已经踩上三校线，', '稳住，这个位置就是你的！');
-
-    } else if (t.gap <= 1) {
-
-      parts.push('离' + t.label + '就差一名，', '再加一点点劲儿就够到了！');
-
-    } else {
-
-      parts.push('离' + t.label + '还差 ' + t.gap + ' 名，', '下次一定能再往前冲！');
-
-    }
-
-    speak(parts);
+    /* 升级不再走系统 TTS：iPad 上音色和真人录音对不上，而且偏尖偏硬。
+       升级只播 playBoost 音效 + 庆祝卡，全程保持同一个女声（科目录音）。 */
+    return false;
 
   }
 
